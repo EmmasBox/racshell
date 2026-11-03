@@ -28,6 +28,11 @@ namespace
 
 
 }
+std::string JsonFormatter::format(const RacfOptionsData &options)
+{
+    return options.profile.dump(2);
+}
+
 std::string JsonFormatter::format(const UserData &user)
 {
     nlohmann::json output;

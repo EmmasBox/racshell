@@ -5,13 +5,34 @@
 #include <vector>
 
 #include "include/racshell/command_helper.hpp"
+#include "include/racshell/output_formatter.hpp"
 
 int main(int argc, char *argv[])
 {
     argparse::ArgumentParser program("racfctl");
     program.add_description("Display or alter RACF system options (SETROPTS).");
     argparse::ArgumentParser list("list");
-    list.add_description("Display all RACF system options.");
+    list.add_description("Display RACF system options with optional class lists.");
+    racshell::add_toggle_argument(list, "-c", "--classes", "display all class lists");
+    struct ClassListOption
+    {
+        const char *flag;
+        const char *key;
+        const char *help;
+    };
+    const std::vector<ClassListOption> class_list_options = {
+        {"--active-classes", "base:active_classes", "display active classes"},
+        {"--raclist", "base:raclist", "display RACLIST classes"},
+        {"--generic", "base:generic_profile_checking_classes", "display generic profile checking classes"},
+        {"--genlist", "base:generic_profile_sharing_classes", "display generic profile sharing classes"},
+        {"--generic-command-classes", "base:generic_command_classes", "display generic command classes"},
+        {"--audit-classes", "base:audit_classes", "display profile change auditing classes"},
+        {"--statistics-classes", "base:statistics_classes", "display statistics classes"},
+        {"--global-access-classes", "base:global_access_classes", "display global access classes"},
+    };
+    for (const auto &option : class_list_options)
+        list.add_argument(option.flag).help(option.help).flag();
+    list.add_argument("--logging-classes").help("display audit logging class lists").flag();
     argparse::ArgumentParser modify("modify");
     modify.add_description("Alter RACF system options.");
     modify.add_argument("traits")
@@ -221,20 +242,34 @@ int main(int argc, char *argv[])
     {
         return 0;
     }
-    if (command.get<bool>("json"))
+    RacfOptionsData data{options.profile};
+    if (!command.get<bool>("classes"))
     {
-        std::cout << options.profile.dump(2) << "\n";
-    }
-    else
-    {
-        racshell::print_colored_text(std::cout, racshell::terminal_color::cyan, "RACF system options") << "\n";
-        for (const auto &segment : options.profile.items())
+        for (auto &segment : data.profile.items())
         {
-            for (const auto &option : segment.value().items())
+            auto &fields = segment.value();
+            for (auto field = fields.begin(); field != fields.end();)
             {
-                std::cout << option.key() << ": " << racshell::value_to_text(option.value()) << "\n";
+                const auto &key = field.key();
+                const bool class_list = key.find("_classes") != std::string::npos || key == "base:raclist";
+                bool selected = command.get<bool>("logging-classes") && key.find("base:audit_log_") == 0;
+                for (const auto &option : class_list_options)
+                    selected = selected || (key == option.key && command.get<bool>(option.flag));
+                if (class_list && !selected)
+                    field = fields.erase(field);
+                else
+                    ++field;
             }
         }
     }
+    if (command.get<bool>("json"))
+    {
+        std::cout << JsonFormatter().format(data);
+    }
+    else
+    {
+        std::cout << TextFormatter().format(data);
+    }
+    std::cout << "\n";
     return 0;
 }

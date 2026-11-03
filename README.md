@@ -74,7 +74,22 @@ Usage:
 
 `racfctl refresh <class> [--generic] [options]`
 
-`list` extracts and displays all system options. `modify` requires at least one system option flag or positional `key=value` trait and performs an alter request. Flags and positional traits can be combined, but the same trait cannot be supplied in both forms. Positional values are parsed as booleans, integers, or strings; flags preserve the data types expected by SEAR.
+`list` displays system settings in grouped, colored sections. Class lists are hidden by default. `modify` requires at least one system option flag or positional `key=value` trait and performs an alter request. Flags and positional traits can be combined, but the same trait cannot be supplied in both forms. Positional values are parsed as booleans, integers, or strings; flags preserve the data types expected by SEAR.
+
+List detail flags (`list` only, can be combined):
+
+- `-c, --classes` display all class lists
+- `--active-classes` display active classes
+- `--raclist` display RACLIST classes
+- `--generic` display generic profile checking classes
+- `--genlist` display generic profile sharing classes
+- `--generic-command-classes` display generic command classes
+- `--audit-classes` display profile change auditing classes
+- `--statistics-classes` display statistics classes
+- `--global-access-classes` display global access classes
+- `--logging-classes` display audit logging class lists
+
+These selectors also apply to `--json`. Use `--all-json` for the unfiltered SEAR response, including all class lists.
 
 `refresh` requires one class name and refreshes RACLIST profiles by default. `-g, --generic` selects GENERIC profiles instead. Class names are normalized to uppercase. A bare `racfctl refresh` is rejected; there is no automatic all-class refresh. Refreshing is a separate subcommand, not a `modify --refresh` flag.
 
@@ -115,6 +130,9 @@ Examples:
 
 ```sh
 racfctl list
+racfctl list --active-classes
+racfctl list --raclist --generic
+racfctl list --classes
 racfctl list --json
 racfctl modify --max-password-attempts 5 --password-history 10
 racfctl refresh appl
