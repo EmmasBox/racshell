@@ -4,6 +4,7 @@
 #include <array>
 #include <cctype>
 #include <sstream>
+#include <string_view>
 
 namespace
 {
@@ -32,22 +33,85 @@ namespace
         return key;
     }
 
+    void append_boolean(std::stringstream &ss, bool value)
+    {
+        racshell::print_colored_text(ss,
+                                     value ? racshell::terminal_color::green : racshell::terminal_color::red,
+                                     value ? "YES" : "NO");
+    }
+
+    template <typename T>
+    void append_styled_value(std::stringstream &ss, const T &value)
+    {
+        std::stringstream value_stream;
+        value_stream << value;
+        racshell::print_colored_text(ss, racshell::terminal_color::blue, value_stream.str());
+    }
+
+    void append_styled_value(std::stringstream &ss, const nlohmann::json &value)
+    {
+        if (value.is_boolean())
+        {
+            append_boolean(ss, value.get<bool>());
+        }
+        else if (value.is_string())
+        {
+            append_styled_value(ss, value.get<std::string>());
+        }
+        else
+        {
+            append_styled_value(ss, value.dump());
+        }
+    }
+
+    template <typename T>
+    void append_field(std::stringstream &ss, std::string_view label, const T &value)
+    {
+        ss << label;
+        append_styled_value(ss, value);
+        ss << "\n";
+    }
+
+    void append_json_value(std::stringstream &ss, const nlohmann::json &value)
+    {
+        append_styled_value(ss, value);
+    }
+
+    void append_comparison_value_text(std::stringstream &ss, const nlohmann::json &value)
+    {
+        if (value.is_boolean())
+        {
+            append_boolean(ss, value.get<bool>());
+        }
+        else
+        {
+            append_styled_value(ss, racshell::value_to_text(value));
+        }
+    }
+
+    void append_segment_label(std::stringstream &ss, std::string_view segment)
+    {
+        ss << "\n";
+        racshell::print_colored_text(ss, racshell::terminal_color::cyan, segment);
+        ss << ":";
+    }
+
+    void append_segment_heading(std::stringstream &ss, std::string_view segment)
+    {
+        append_segment_label(ss, segment);
+        ss << "\n";
+    }
+
     void append_csdata(std::stringstream &ss, const nlohmann::json &csdata)
     {
         if (!csdata.is_null() && !csdata.empty())
         {
-            ss << "CSDATA:\n";
+            append_segment_heading(ss, "CSDATA");
             for (auto it = csdata.begin(); it != csdata.end(); ++it)
             {
                 ss << "  " << format_security_key(it.key()) << ": ";
-                if (it.value().is_string())
-                {
-                    ss << it.value().get<std::string>() << "\n";
-                }
-                else
-                {
-                    ss << it.value().dump() << "\n";
-                }
+                append_json_value(ss, it.value());
+                ss << "\n";
             }
         }
     }
@@ -59,10 +123,13 @@ namespace
             ss << "Access List:\n";
             for (const auto &entry : access_list)
             {
-                ss << "  " << entry.access_type;
+                ss << "  ";
+                append_styled_value(ss, entry.access_type);
                 if (!entry.access_id.empty())
                 {
-                    ss << " (" << entry.access_id << ")";
+                    ss << " (";
+                    append_styled_value(ss, entry.access_id);
+                    ss << ")";
                 }
                 ss << "\n";
             }
@@ -74,8 +141,11 @@ namespace
         ss << heading << "\n";
         for (const auto &user : users)
         {
-            ss << "    " << user.value("userid", "")
-               << " (" << user.value("authority", "") << ")\n";
+            ss << "    ";
+            append_styled_value(ss, user.value("userid", ""));
+            ss << " (";
+            append_styled_value(ss, user.value("authority", ""));
+            ss << ")\n";
         }
     }
 
@@ -84,7 +154,9 @@ namespace
         ss << heading << "\n";
         for (const auto &group : groups)
         {
-            ss << "    " << racshell::value_to_text(group) << "\n";
+            ss << "    ";
+            append_styled_value(ss, racshell::value_to_text(group));
+            ss << "\n";
         }
     }
 
@@ -96,14 +168,20 @@ namespace
                                  const std::string &label)
     {
         ss << "  ";
-        racshell::colorize(ss, racshell::terminal_color::gray) << label;
+        const bool segment_label = label == "tso" || label == "kerberos" ||
+                       label == "cics" || label == "omvs" || label == "csdata";
+        racshell::colorize(ss, segment_label ? racshell::terminal_color::cyan : racshell::terminal_color::gray) << label;
         racshell::reset_color(ss) << ": ";
 
         racshell::colorize(ss, racshell::terminal_color::magenta) << left_groupid;
-        racshell::reset_color(ss) << "='" << racshell::value_to_text(difference.contains("left") ? difference["left"] : nlohmann::json()) << "', ";
+        racshell::reset_color(ss) << "='";
+        append_comparison_value_text(ss, difference.contains("left") ? difference["left"] : nlohmann::json());
+        ss << "', ";
 
         racshell::colorize(ss, racshell::terminal_color::cyan) << right_groupid;
-        racshell::reset_color(ss) << "='" << racshell::value_to_text(difference.contains("right") ? difference["right"] : nlohmann::json()) << "'\n";
+        racshell::reset_color(ss) << "='";
+        append_comparison_value_text(ss, difference.contains("right") ? difference["right"] : nlohmann::json());
+        ss << "'\n";
     }
 
 } // namespace
@@ -112,89 +190,117 @@ std::string TextFormatter::format(const UserData &user)
 {
     std::stringstream ss;
 
-    ss << "User: " << user.userid << "\n";
-    ss << "Name: " << user.name << "\n";
-    ss << "Installation data: " << user.installation_data << "\n";
-    ss << "Owner: " << user.owner << "\n";
-    ss << "Default group: " << user.default_group << "\n";
-    ss << "Created: " << user.created_date << "\n";
-    ss << "Last access date: " << user.last_access_date << "\n";
-    ss << "Last access time: " << user.last_access_time << "\n";
-    ss << "Protected: " << (user.protected_user ? "YES" : "NO") << "\n";
-    ss << "Special: " << (user.special ? "YES" : "NO") << "\n";
-    ss << "Operations: " << (user.operations ? "YES" : "NO") << "\n";
-    ss << "Auditor: " << (user.auditor ? "YES" : "NO") << "\n";
-    ss << "Read-only auditor: " << (user.read_only_auditor ? "YES" : "NO") << "\n";
-    ss << "Revoked: " << (user.revoked ? "YES" : "NO") << "\n";
-    ss << "Password expired: " << (user.password_expired ? "YES" : "NO") << "\n";
-    ss << "Has passphrase: " << (user.has_passphrase ? "YES" : "NO") << "\n";
-    ss << "Has password: " << (user.has_password ? "YES" : "NO") << "\n";
-    ss << "MFA active: " << (user.mfa_active ? "YES" : "NO") << "\n";
+    append_field(ss, "User: ", user.userid);
+    append_field(ss, "Name: ", user.name);
+    append_field(ss, "Installation data: ", user.installation_data);
+    append_field(ss, "Owner: ", user.owner);
+    append_field(ss, "Default group: ", user.default_group);
+    append_field(ss, "Created: ", user.created_date);
+    append_field(ss, "Last access date: ", user.last_access_date);
+    append_field(ss, "Last access time: ", user.last_access_time);
+    ss << "Protected: ";
+    append_boolean(ss, user.protected_user);
+    ss << "\n";
+    ss << "Restricted: ";
+    append_boolean(ss, user.restrict_global_access_checking);
+    ss << "\n";
+    ss << "Special: ";
+    append_boolean(ss, user.special);
+    ss << "\n";
+    ss << "Operations: ";
+    append_boolean(ss, user.operations);
+    ss << "\n";
+    ss << "Auditor: ";
+    append_boolean(ss, user.auditor);
+    ss << "\n";
+    ss << "Read-only auditor: ";
+    append_boolean(ss, user.read_only_auditor);
+    ss << "\n";
+    ss << "Revoked: ";
+    append_boolean(ss, user.revoked);
+    ss << "\n";
+    if (!user.revoke_date.empty())
+    {
+        append_field(ss, "Revoke date: ", user.revoke_date);
+    }
+    ss << "Password expired: ";
+    append_boolean(ss, user.password_expired);
+    ss << "\n";
+    ss << "Has passphrase: ";
+    append_boolean(ss, user.has_passphrase);
+    ss << "\n";
+    ss << "Has password: ";
+    append_boolean(ss, user.has_password);
+    ss << "\n";
+    ss << "MFA active: ";
+    append_boolean(ss, user.mfa_active);
+    ss << "\n";
 
     if (!user.groups.empty())
     {
         ss << "Groups:\n";
         for (const auto &group : user.groups)
         {
-            ss << "  " << group << "\n";
+            ss << "  ";
+            append_styled_value(ss, group);
+            ss << "\n";
         }
     }
 
     if (!user.security.is_null() && !user.security.empty())
     {
-        ss << "Security:\n";
         for (auto it = user.security.begin(); it != user.security.end(); ++it)
         {
-            ss << "  " << format_security_key(it.key()) << ": ";
-            if (it.value().is_string())
-            {
-                ss << it.value().get<std::string>() << "\n";
-            }
-            else
-            {
-                ss << it.value().dump() << "\n";
-            }
+            ss << format_security_key(it.key()) << ": ";
+            append_json_value(ss, it.value());
+            ss << "\n";
         }
     }
 
     if (!user.tso.is_null() && !user.tso.empty())
     {
-        ss << "TSO:\n";
+        append_segment_heading(ss, "TSO");
         if (user.tso.contains("tso:logon_procedure"))
-            ss << "  Procedure:    " << user.tso["tso:logon_procedure"].get<std::string>() << "\n";
+            append_field(ss, "  Procedure:    ", user.tso["tso:logon_procedure"]);
         if (user.tso.contains("tso:account_number"))
-            ss << "  Account:      " << user.tso["tso:account_number"].get<std::string>() << "\n";
+            append_field(ss, "  Account:      ", user.tso["tso:account_number"]);
         if (user.tso.contains("tso:default_region_size"))
-            ss << "  Region:       " << user.tso["tso:default_region_size"] << "\n";
+            append_field(ss, "  Region:       ", user.tso["tso:default_region_size"]);
         if (user.tso.contains("tso:max_region_size"))
-            ss << "  Max region:   " << user.tso["tso:max_region_size"] << "\n";
+            append_field(ss, "  Max region:   ", user.tso["tso:max_region_size"]);
         if (user.tso.contains("tso:dataset_allocation_unit"))
-            ss << "  Alloc unit:   " << user.tso["tso:dataset_allocation_unit"].get<std::string>() << "\n";
+            append_field(ss, "  Alloc unit:   ", user.tso["tso:dataset_allocation_unit"]);
         if (user.tso.contains("tso:logon_command"))
-            ss << "  Logon cmd:    " << user.tso["tso:logon_command"].get<std::string>() << "\n";
+            append_field(ss, "  Logon cmd:    ", user.tso["tso:logon_command"]);
         if (user.tso.contains("tso:user_data"))
-            ss << "  User data:    " << user.tso["tso:user_data"].get<std::string>() << "\n";
+            append_field(ss, "  User data:    ", user.tso["tso:user_data"]);
     }
 
     if (!user.omvs.is_null() && !user.omvs.empty())
     {
-        ss << "OMVS:\n";
+        append_segment_heading(ss, "OMVS");
         if (user.omvs.contains("omvs:uid"))
-            ss << "  UID:   " << user.omvs["omvs:uid"] << "\n";
+            append_field(ss, "  UID:   ", user.omvs["omvs:uid"]);
         if (user.omvs.contains("omvs:home_directory"))
-            ss << "  Home:  " << user.omvs["omvs:home_directory"].get<std::string>() << "\n";
+            append_field(ss, "  Home:  ", user.omvs["omvs:home_directory"]);
         if (user.omvs.contains("omvs:default_shell"))
-            ss << "  Shell: " << user.omvs["omvs:default_shell"].get<std::string>() << "\n";
+            append_field(ss, "  Shell: ", user.omvs["omvs:default_shell"]);
     }
 
     if (!user.kerberos.is_null() && !user.kerberos.empty())
     {
-        ss << "Kerberos: " << user.kerberos.dump() << "\n";
+        append_segment_label(ss, "Kerberos");
+        ss << " ";
+        append_styled_value(ss, user.kerberos.dump());
+        ss << "\n";
     }
 
     if (!user.cics.is_null() && !user.cics.empty())
     {
-        ss << "CICS: " << user.cics.dump() << "\n";
+        append_segment_label(ss, "CICS");
+        ss << " ";
+        append_styled_value(ss, user.cics.dump());
+        ss << "\n";
     }
 
     append_csdata(ss, user.csdata);
@@ -206,15 +312,17 @@ std::string TextFormatter::format(const GroupData &group)
 {
     std::stringstream ss;
 
-    ss << "Group: " << group.groupid << "\n";
-    ss << "Owner: " << group.owner << "\n";
-    ss << "Created: " << group.created_date << "\n";
-    ss << "Superior group: " << group.superior_group << "\n";
-    ss << "Universal: " << (group.universal ? "YES" : "NO") << "\n";
+    append_field(ss, "Group: ", group.groupid);
+    append_field(ss, "Owner: ", group.owner);
+    append_field(ss, "Created: ", group.created_date);
+    append_field(ss, "Superior group: ", group.superior_group);
+    ss << "Universal: ";
+    append_boolean(ss, group.universal);
+    ss << "\n";
 
     if (!group.installation_data.empty())
     {
-        ss << "Installation data: " << group.installation_data << "\n";
+        append_field(ss, "Installation data: ", group.installation_data);
     }
 
     if (!group.connected_users.empty())
@@ -222,17 +330,20 @@ std::string TextFormatter::format(const GroupData &group)
         ss << "Users:\n";
         for (const auto &connected_user : group.connected_users)
         {
-            ss << "  " << connected_user.userid << " ("
-               << connected_user.authority << ")\n";
+                ss << "  ";
+                append_styled_value(ss, connected_user.userid);
+                ss << " (";
+                append_styled_value(ss, connected_user.authority);
+                ss << ")\n";
         }
     }
 
     if (!group.omvs.is_null() && !group.omvs.empty())
     {
-        ss << "OMVS:\n";
+        append_segment_heading(ss, "OMVS");
         if (group.omvs.contains("omvs:gid"))
         {
-            ss << "  GID: " << group.omvs["omvs:gid"] << "\n";
+            append_field(ss, "  GID: ", group.omvs["omvs:gid"]);
         }
     }
 
@@ -245,14 +356,16 @@ std::string TextFormatter::format(const DatasetData &dataset)
 {
     std::stringstream ss;
 
-    ss << "Dataset: " << dataset.dataset << "\n";
-    ss << "Owner: " << dataset.owner << "\n";
-    ss << "UACC: " << dataset.uacc << "\n";
-    ss << "Audited: " << (dataset.audited ? "YES" : "NO") << "\n";
+    append_field(ss, "Dataset: ", dataset.dataset);
+    append_field(ss, "Owner: ", dataset.owner);
+    append_field(ss, "UACC: ", dataset.uacc);
+    ss << "Audited: ";
+    append_boolean(ss, dataset.audited);
+    ss << "\n";
 
     if (dataset.access_count > 0)
     {
-        ss << "Access Count: " << dataset.access_count << "\n";
+        append_field(ss, "Access Count: ", dataset.access_count);
     }
 
     append_csdata(ss, dataset.csdata);
@@ -266,14 +379,14 @@ std::string TextFormatter::format(const ResourceData &resource)
 {
     std::stringstream ss;
 
-    ss << "Resource: " << resource.resource << "\n";
-    ss << "Class: " << resource.resource_class << "\n";
-    ss << "Owner: " << resource.owner << "\n";
-    ss << "UACC: " << resource.uacc << "\n";
+    append_field(ss, "Resource: ", resource.resource);
+    append_field(ss, "Class: ", resource.resource_class);
+    append_field(ss, "Owner: ", resource.owner);
+    append_field(ss, "UACC: ", resource.uacc);
 
     if (resource.base.contains("base:create_date"))
     {
-        ss << "Created: " << resource.base["base:create_date"] << "\n";
+        append_field(ss, "Created: ", resource.base["base:create_date"]);
     }
 
     append_csdata(ss, resource.csdata);
@@ -325,8 +438,11 @@ std::string TextFormatter::format(const GroupComparisonData &comparison)
                 racshell::reset_color(ss);
                 for (const auto &user : users["only_in_left"])
                 {
-                    ss << "    " << user.value("userid", "")
-                       << " (" << user.value("authority", "") << ")\n";
+                    ss << "    ";
+                    append_styled_value(ss, user.value("userid", ""));
+                    ss << " (";
+                    append_styled_value(ss, user.value("authority", ""));
+                    ss << ")\n";
                 }
             }
             if (users.contains("only_in_right"))
@@ -335,8 +451,11 @@ std::string TextFormatter::format(const GroupComparisonData &comparison)
                 racshell::reset_color(ss);
                 for (const auto &user : users["only_in_right"])
                 {
-                    ss << "    " << user.value("userid", "")
-                       << " (" << user.value("authority", "") << ")\n";
+                    ss << "    ";
+                    append_styled_value(ss, user.value("userid", ""));
+                    ss << " (";
+                    append_styled_value(ss, user.value("authority", ""));
+                    ss << ")\n";
                 }
             }
             if (users.contains("authority_mismatches"))
@@ -344,11 +463,17 @@ std::string TextFormatter::format(const GroupComparisonData &comparison)
                 racshell::print_colored_text(ss, racshell::terminal_color::gray, "  User authority differences\n");
                 for (const auto &mismatch : users["authority_mismatches"])
                 {
-                    ss << "    " << mismatch.value("userid", "") << ": ";
+                    ss << "    ";
+                    append_styled_value(ss, mismatch.value("userid", ""));
+                    ss << ": ";
                     racshell::colorize(ss, racshell::terminal_color::magenta) << comparison.left.groupid;
-                    racshell::reset_color(ss) << "='" << mismatch.value("left", "") << "', ";
+                    racshell::reset_color(ss) << "='";
+                    append_styled_value(ss, mismatch.value("left", ""));
+                    ss << "', ";
                     racshell::colorize(ss, racshell::terminal_color::cyan) << comparison.right.groupid;
-                    racshell::reset_color(ss) << "='" << mismatch.value("right", "") << "'\n";
+                    racshell::reset_color(ss) << "='";
+                    append_styled_value(ss, mismatch.value("right", ""));
+                    ss << "'\n";
                 }
             }
             continue;
@@ -429,7 +554,9 @@ std::string TextFormatter::format(const UserComparisonData &comparison)
                 racshell::reset_color(ss);
                 for (const auto &group : groups["only_in_left"])
                 {
-                    ss << "    " << racshell::value_to_text(group) << "\n";
+                    ss << "    ";
+                    append_styled_value(ss, racshell::value_to_text(group));
+                    ss << "\n";
                 }
             }
             if (groups.contains("only_in_right") && groups["only_in_right"].is_array() && !groups["only_in_right"].empty())
@@ -438,7 +565,9 @@ std::string TextFormatter::format(const UserComparisonData &comparison)
                 racshell::reset_color(ss);
                 for (const auto &group : groups["only_in_right"])
                 {
-                    ss << "    " << racshell::value_to_text(group) << "\n";
+                    ss << "    ";
+                    append_styled_value(ss, racshell::value_to_text(group));
+                    ss << "\n";
                 }
             }
             return;

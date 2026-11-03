@@ -14,7 +14,7 @@ endif()
 if(MSVC)
     string(APPEND CMAKE_CXX_FLAGS_RELEASE " /O2")
 else()
-    string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -march=arch14")
+    string(APPEND CMAKE_CXX_FLAGS_RELEASE " -O3 -march=arch13")
 endif()
 
 add_subdirectory(sear)
@@ -137,6 +137,16 @@ target_link_libraries(permitresource racshell -static)
 add_executable(deletepermitresource "racshell/src/commands/resource/deletepermitresource.cpp")
 target_link_libraries(deletepermitresource racshell -static)
 
+# Keyring commands
+add_executable(addkeyring "racshell/src/commands/keyring/addkeyring.cpp")
+target_link_libraries(addkeyring racshell -static)
+
+add_executable(deletekeyring "racshell/src/commands/keyring/deletekeyring.cpp")
+target_link_libraries(deletekeyring racshell -static)
+
+add_executable(listkeyring "racshell/src/commands/keyring/listkeyring.cpp")
+target_link_libraries(listkeyring racshell -static)
+
 add_custom_target(
     racshell_commands
     DEPENDS
@@ -171,4 +181,7 @@ add_custom_target(
     permitresource
     deletepermitdataset
     deletepermitresource
+    addkeyring
+    deletekeyring
+    listkeyring
 )
