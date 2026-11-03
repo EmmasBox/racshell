@@ -150,7 +150,7 @@ See SEAR's [system options examples](https://mainframe-renewal-project.github.io
 
 ### rrsflist
 
-Display the RRSF configuration using SEAR's `racf-rrsf` extract interface. This command is read-only; SEAR does not support adding, modifying, deleting, or searching RRSF configuration. Requires SEAR 0.4.0 or later.
+Display the RRSF configuration using SEAR's `racf-rrsf` extract interface. This command is read-only; SEAR does not support adding, modifying, deleting, or searching RRSF configuration.
 
 Usage:
 
