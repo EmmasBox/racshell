@@ -1,3 +1,10 @@
+
+
+![C++ Version](https://img.shields.io/badge/https%3A%2F%2Fimg.shields.io%2Fbadge%2Fany_text-C%2B%2B17-blue?label=C%2B%2B%20Version)
+![z/OS Version](https://img.shields.io/badge/https%3A%2F%2Fimg.shields.io%2Fbadge%2Fany_text-z%2FOS%203.1%2B-blue?label=OS)
+
+![RACSHELL Logo](https://github.com/Mainframe-Renewal-Project/racshell/blob/main/logo.png)
+
 # RACSHELL
 
 Open source RACF shell interface intended for z/OS Unix SSH sessions. Built with SEAR and C++17.
@@ -389,7 +396,6 @@ Options:
 - `-j, --json` output as JSON
 - `-a, --all-json` output full raw SEAR JSON response
 
-
 ### deletedataset
 
 Delete a RACF dataset profile.
@@ -627,6 +633,7 @@ All keyring commands support `-n, --no-color`, `-d, --debug`, `-j, --json`, and 
 
 To compile RACSHELL you will need the following software:
 
+- z/OS 3.1 or later
 - Git from Open Enterprise Foundation
 - CMake from zOpen
 - zoslib from zOpen
