@@ -9,6 +9,7 @@
 #include "include/racshell/data/group_comparison_data.hpp"
 #include "include/racshell/data/user_comparison_data.hpp"
 #include "include/racshell/data/racf_options_data.hpp"
+#include "include/racshell/data/rrsf_data.hpp"
 
 class OutputFormatter
 {
@@ -21,6 +22,7 @@ public:
     virtual std::string format(const GroupComparisonData &comparison) = 0;
     virtual std::string format(const UserComparisonData &comparison) = 0;
     virtual std::string format(const RacfOptionsData &options) = 0;
+    virtual std::string format(const RrsfData &rrsf) = 0;
 };
 
 class TextFormatter : public OutputFormatter
@@ -33,6 +35,7 @@ public:
     std::string format(const GroupComparisonData &comparison) override;
     std::string format(const UserComparisonData &comparison) override;
     std::string format(const RacfOptionsData &options) override;
+    std::string format(const RrsfData &rrsf) override;
 };
 
 class JsonFormatter : public OutputFormatter
@@ -45,6 +48,7 @@ public:
     std::string format(const GroupComparisonData &comparison) override;
     std::string format(const UserComparisonData &comparison) override;
     std::string format(const RacfOptionsData &options) override;
+    std::string format(const RrsfData &rrsf) override;
 };
 
 #endif // OUTPUT_FORMATTER_HPP

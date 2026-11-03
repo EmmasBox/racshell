@@ -77,6 +77,50 @@ namespace
         append_styled_value(ss, value);
     }
 
+    void append_rrsf_fields(std::stringstream &ss, const nlohmann::json &value, std::size_t indent)
+    {
+        const std::string padding(indent, ' ');
+        if (value.is_object())
+        {
+            for (const auto &field : value.items())
+            {
+                ss << padding << format_security_key(field.key()) << ":";
+                if (field.value().is_structured() && !field.value().empty())
+                {
+                    ss << "\n";
+                    append_rrsf_fields(ss, field.value(), indent + 2);
+                }
+                else
+                {
+                    ss << " ";
+                    if (field.value().is_structured())
+                        append_styled_value(ss, "None");
+                    else
+                        append_styled_value(ss, field.value());
+                    ss << "\n";
+                }
+            }
+        }
+        else if (value.is_array())
+        {
+            for (std::size_t index = 0; index < value.size(); ++index)
+            {
+                ss << padding << "Entry " << index + 1 << ":";
+                if (value[index].is_structured())
+                {
+                    ss << "\n";
+                    append_rrsf_fields(ss, value[index], indent + 2);
+                }
+                else
+                {
+                    ss << " ";
+                    append_styled_value(ss, value[index]);
+                    ss << "\n";
+                }
+            }
+        }
+    }
+
     void append_comparison_value_text(std::stringstream &ss, const nlohmann::json &value)
     {
         if (value.is_boolean())
@@ -185,6 +229,44 @@ namespace
     }
 
 } // namespace
+
+std::string TextFormatter::format(const RrsfData &rrsf)
+{
+    std::stringstream ss;
+    racshell::print_colored_text(ss, racshell::terminal_color::cyan, "RRSF configuration");
+    ss << "\n";
+    const auto &base = rrsf.profile.at("base");
+    for (const auto &field : base.items())
+    {
+        if (!field.value().is_structured())
+            append_field(ss, format_security_key(field.key()) + ": ", field.value());
+    }
+    for (const auto &field : base.items())
+    {
+        if (!field.value().is_structured() || field.key() == "base:nodes")
+            continue;
+        append_segment_heading(ss, format_security_key(field.key()));
+        if (field.value().empty())
+            append_field(ss, "  ", "None");
+        else
+            append_rrsf_fields(ss, field.value(), 2);
+    }
+    const auto nodes = base.find("base:nodes");
+    if (nodes == base.end() || nodes->empty())
+    {
+        append_segment_heading(ss, "Nodes");
+        append_field(ss, "  ", "None");
+    }
+    else if (nodes->is_array())
+    {
+        for (std::size_t index = 0; index < nodes->size(); ++index)
+        {
+            append_segment_heading(ss, "Node " + std::to_string(index + 1));
+            append_rrsf_fields(ss, (*nodes)[index], 2);
+        }
+    }
+    return ss.str();
+}
 
 std::string TextFormatter::format(const RacfOptionsData &options)
 {

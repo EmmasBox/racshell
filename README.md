@@ -57,6 +57,7 @@ The following commands are currently implemented in `racshell/`.
 | `deletekeyring` | Keyring | Delete a RACF keyring | `--json`, `--debug`, `--all-json`, `--no-color` |
 | `listkeyring` | Keyring | Display keyring and certificate details | `--json`, `--debug`, `--all-json`, `--no-color` |
 | `racfctl` | System | Display or alter RACF system options (SETROPTS) | `list`, `modify`, `refresh`, `--json`, `--debug`, `--all-json`, `--no-color` |
+| `rrsflist` | RRSF | Display RRSF configuration and nodes (read-only) | `--nodes`, `--settings`, `--json`, `--debug`, `--all-json`, `--no-color` |
 
 All commands accept `-n`, `--no-color`, or `--no-colour` to disable colored output.
 
@@ -144,6 +145,38 @@ racfctl modify --classact 'FACILITY XFACILIT' base:program_control=true
 Warning: changes affect the whole system. Review planned changes before executing them, and protect extracted settings and debug output as sensitive information.
 
 See SEAR's [system options examples](https://mainframe-renewal-project.github.io/sear-docs/python/setropts/) and [supported RACF options traits](https://mainframe-renewal-project.github.io/sear-docs/traits/racf_options/) for the full set of available settings, including RACLIST refresh traits.
+
+## RRSF
+
+### rrsflist
+
+Display the RRSF configuration using SEAR's `racf-rrsf` extract interface. This command is read-only; SEAR does not support adding, modifying, deleting, or searching RRSF configuration. Requires SEAR 0.4.0 or later.
+
+Usage:
+
+`rrsflist [options]`
+
+By default, the command shows subsystem and direction settings with a compact overview of each node. Detailed workspace, network, and notification information is optional.
+
+Options:
+
+- `-N, --nodes` display full node details
+- `-s, --settings` display notification destinations and output settings
+- `-n, --no-color` disable colored output
+- `-d, --debug` debug SEAR request and response
+- `-j, --json` output the selected configuration details as JSON
+- `-a, --all-json` output the unfiltered raw SEAR JSON response; failed requests still return a nonzero exit status
+
+Examples:
+
+```sh
+rrsflist
+rrsflist --nodes --settings
+rrsflist --json
+rrsflist --all-json
+```
+
+RRSF data and debug output contain sensitive system-layout and network information. Store them securely. See SEAR's [RRSF documentation](https://mainframe-renewal-project.github.io/sear-docs/python/rrsf/) for details and required API support.
 
 ## User Commands
 
