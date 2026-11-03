@@ -1,6 +1,10 @@
 # RACSHELL
 
-Open source RACF shell interface intended for z/OS Unix SSH sessions
+Open source RACF shell interface intended for z/OS Unix SSH sessions. Built with SEAR and C++17.
+
+## Permissions
+
+To use RACSHELL you will need access to one or more of the RACF profiles documented in the [SEAR documentation](https://mainframe-renewal-project.github.io/sear-docs/authorizations/), depending on the commands you intend to execute. You will also need access to group special, system special, read-only auditor, or FIELD class profiles in addition to the IRRSEQ00, IRRSDL64, and IRRSMO00 API accesses. Whether you can make do with something like group/system special or group/system auditor depends on whether or not you need to change or list things in RACF.
 
 ## Commands
 
@@ -13,7 +17,7 @@ The following commands are currently implemented in `racshell/`.
 | `adduser` | User | Create RACF user | `--traits`, `--json`, `--debug`, `--all-json`, `--no-color` |
 | `altuser` | User | Alter RACF user | `--traits`, `--json`, `--debug`, `--all-json`, `--no-color` |
 | `deleteuser` | User | Delete RACF user | `--json`, `--debug`, `--all-json`, `--no-color` |
-| `listuser` | User | Display RACF user details | `--groups`, `--tso`, `--kerberos`, `--cics`, `--omvs`, `--security`, `--csdata`, `--json`, `--all-json`, `--debug`, `--no-color` |
+| `listuser` | User | Display RACF user details | `--groups`, `--tso`, `--kerberos`, `--cics`, `--omvs`, `--csdata`, `--json`, `--all-json`, `--debug`, `--no-color` |
 | `searchusers` | User | Search RACF users | `--filter`, `--json`, `--debug`, `--all-json`, `--no-color` |
 | `compareusers` | User | Compare two RACF users | `--json`, `--all-json`, `--debug`, `--no-color` |
 | `resume` | User | Resume a RACF user | `--json`, `--debug`, `--all-json`, `--no-color` |
@@ -42,6 +46,11 @@ The following commands are currently implemented in `racshell/`.
 | `permitresource` | Permit | Grant access to resource profile | `--traits`, `--json`, `--debug`, `--all-json`, `--no-color` |
 | `deletepermitdataset` | Permit | Revoke access to dataset profile | `--generic`, `--json`, `--debug`, `--all-json`, `--no-color` |
 | `deletepermitresource` | Permit | Revoke access to resource profile | `--json`, `--debug`, `--all-json`, `--no-color` |
+| `addkeyring` | Keyring | Create a RACF keyring | `--json`, `--debug`, `--all-json`, `--no-color` |
+| `deletekeyring` | Keyring | Delete a RACF keyring | `--json`, `--debug`, `--all-json`, `--no-color` |
+| `listkeyring` | Keyring | Display keyring and certificate details | `--json`, `--debug`, `--all-json`, `--no-color` |
+
+All commands accept `-n`, `--no-color`, or `--no-colour` to disable colored output.
 
 ## User Commands
 
@@ -109,7 +118,6 @@ Options:
 - `-k, --kerberos` list Kerberos segment
 - `-c, --cics` list CICS segment
 - `-o, --omvs` list OMVS segment
-- `-s, --security` list security-related fields
 - `-x, --csdata` list CSDATA segment
 - `-n, --no-color` disable colored output
 - `-d, --debug` debug SEAR request and response
@@ -584,3 +592,64 @@ Options:
 - `-d, --debug` debug SEAR request and response
 - `-j, --json` output as JSON
 - `-a, --all-json` output full raw SEAR JSON response
+
+## Keyring Commands
+
+Keyring administration and lookup commands. Each command requires both the keyring name and owner userid.
+
+### addkeyring
+
+Create a RACF keyring.
+
+Usage:
+
+`addkeyring <owner> <keyring> [options]`
+
+### deletekeyring
+
+Delete a RACF keyring.
+
+Usage:
+
+`deletekeyring <owner> <keyring> [options]`
+
+### listkeyring
+
+Extract keyring details, including associated certificates.
+
+Usage:
+
+`listkeyring <owner> <keyring> [options]`
+
+All keyring commands support `-n, --no-color`, `-d, --debug`, `-j, --json`, and `-a, --all-json`.
+
+## Build pre-reqs
+
+To compile RACSHELL you will need the following software:
+
+- Git from Open Enterprise Foundation
+- CMake from zOpen
+- zoslib from zOpen
+- OpenSSL 4.x.x or higher from zOpen
+- IBM Clangd compiler 2.1 or higher (C++17 is a hard pre-requisite)
+
+First pull in the RACSHELL repository:
+
+```sh
+git clone https://github.com/Mainframe-Renewal-Project/racshell.git
+```
+
+Make sure to pull in the SEAR submodule before compile, git doesn't do this automatically:
+
+```sh
+git submodule update --init --recursive sear
+```
+
+Then kick off the compilation process:
+
+```sh
+cmake --preset zos -DZOSLIB:FILEPATH="$ZOSLIB_ROOT/lib/libzoslib.a"
+cmake --build --preset zos --target racshell_commands
+```
+
+After compilation the commands can be found in the build output directory specified by the CMake preset (./build/zos/).
