@@ -396,7 +396,6 @@ Options:
 - `-j, --json` output as JSON
 - `-a, --all-json` output full raw SEAR JSON response
 
-
 ### deletedataset
 
 Delete a RACF dataset profile.
