@@ -147,9 +147,13 @@ target_link_libraries(deletekeyring racshell -static)
 add_executable(listkeyring "racshell/src/commands/keyring/listkeyring.cpp")
 target_link_libraries(listkeyring racshell -static)
 
+add_executable(racfctl "racshell/src/commands/racfctl/racfctl.cpp")
+target_link_libraries(racfctl racshell -static)
+
 add_custom_target(
     racshell_commands
     DEPENDS
+    racfctl
     listuser
     searchusers
     compareusers
