@@ -653,6 +653,11 @@ int main(int argc, char *argv[])
         racshell::print_error(std::cerr, "Invalid input, levels must not be negative");
         return 1;
     }
+    if (max_width < 0)
+    {
+        racshell::print_error(std::cerr, "Invalid input, width must not be negative");
+        return 1;
+    }
 
     root_name = racshell::from_racf_identifier_text(root_name);
     std::string error;
